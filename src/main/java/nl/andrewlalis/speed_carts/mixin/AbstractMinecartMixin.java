@@ -27,10 +27,10 @@ import net.minecraft.world.World;
 import nl.andrewlalis.speed_carts.SpeedCarts;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Overwrite;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.ArrayList;
@@ -102,11 +102,13 @@ public abstract class AbstractMinecartMixin extends Entity {
 	@Shadow
 	public abstract Direction getMovementDirection();
 
-	@Inject(at = @At("HEAD"), method = "moveOnRail", cancellable = true)
-	public void moveOnRailOverwrite(BlockPos pos, BlockState state, CallbackInfo ci) {
+	/**
+	 * @author andrewlalis
+	 */
+	@Overwrite
+	public void moveOnRail(BlockPos pos, BlockState state) {
 		this.updateForSpeedModifiers(pos);
 		this.modifiedMoveOnRail(pos, state);
-		ci.cancel();
 	}
 
 	/**
@@ -223,7 +225,7 @@ public abstract class AbstractMinecartMixin extends Entity {
 			onNormalRail = !onPoweredRail;
 		}
 
-		double g = 0.0078125D;
+		double g = 1 / 128.0;
 		if (this.isTouchingWater()) {
 			g *= 0.2D;
 		}
