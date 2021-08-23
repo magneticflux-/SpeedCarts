@@ -18,10 +18,14 @@ import net.minecraft.sound.SoundEvents;
 import net.minecraft.state.property.Properties;
 import net.minecraft.text.Text;
 import net.minecraft.util.DyeColor;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.*;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.math.Vec3i;
 import net.minecraft.world.World;
 import nl.andrewlalis.speed_carts.SpeedCarts;
+import org.jetbrains.annotations.NotNull;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -68,13 +72,18 @@ public abstract class AbstractMinecartMixin extends Entity {
 	 */
 	private BlockPos lastUpdatedFrom = null;
 
-	@Shadow
-	public abstract Vec3d snapPositionToRail(double x, double y, double z);
+	public AbstractMinecartMixin(EntityType<?> type, World world) {
+		super(type, world);
+	}
 
 	@Shadow
-	private static Pair<Vec3i, Vec3i> getAdjacentRailPositionsByShape(RailShape shape) {
+	private static @NotNull Pair<Vec3i, Vec3i> getAdjacentRailPositionsByShape(RailShape shape) {
+		//noinspection ConstantConditions
 		return null;
 	}
+
+	@Shadow
+	public abstract Vec3d snapPositionToRail(double x, double y, double z);
 
 	@Shadow
 	protected abstract double getMaxOffRailSpeed();
@@ -90,14 +99,8 @@ public abstract class AbstractMinecartMixin extends Entity {
 	@Shadow
 	protected abstract boolean willHitBlockAt(BlockPos pos);
 
-	public AbstractMinecartMixin(EntityType<?> type, World world) {
-		super(type, world);
-	}
-
 	@Shadow
-	protected abstract void moveOnRail(BlockPos pos, BlockState state);
-
-	@Shadow public abstract Direction getMovementDirection();
+	public abstract Direction getMovementDirection();
 
 	@Inject(at = @At("HEAD"), method = "moveOnRail", cancellable = true)
 	public void moveOnRailOverwrite(BlockPos pos, BlockState state, CallbackInfo ci) {
@@ -111,6 +114,7 @@ public abstract class AbstractMinecartMixin extends Entity {
 	 * apply their effects to the cart. It does this by iterating over a list of
 	 * possible positions for blocks which are considered speed modifiers, and
 	 * then if a valid speed modifier is found, the cart's speed is updated.
+	 *
 	 * @param pos The cart's current position.
 	 */
 	private void updateForSpeedModifiers(BlockPos pos) {
@@ -122,8 +126,7 @@ public abstract class AbstractMinecartMixin extends Entity {
 
 		for (BlockPos position : this.getPositionsToCheck(pos)) {
 			BlockEntity blockEntity = this.world.getBlockEntity(position);
-			if (blockEntity instanceof SignBlockEntity) {
-				SignBlockEntity sign = (SignBlockEntity) blockEntity;
+			if (blockEntity instanceof SignBlockEntity sign) {
 				if (!sign.getPos().equals(this.lastUpdatedFrom) || this.world.getTime() > this.lastSpeedUpdate + SPEED_UPDATE_COOLDOWN) {
 					BlockState state = this.world.getBlockState(position);
 					Direction dir = (Direction) state.getEntries().get(Properties.HORIZONTAL_FACING);
@@ -138,6 +141,7 @@ public abstract class AbstractMinecartMixin extends Entity {
 
 	/**
 	 * Attempts to update the cart's speed according to a sign.
+	 *
 	 * @param sign The sign that contains speed information.
 	 * @return True if the cart's speed was updated, or false otherwise.
 	 */
@@ -176,6 +180,7 @@ public abstract class AbstractMinecartMixin extends Entity {
 	/**
 	 * Gathers a list of all block positions to check for signs that may affect
 	 * the cart's speed.
+	 *
 	 * @param pos The cart's block position.
 	 * @return A collection of positions to check.
 	 */
@@ -197,11 +202,13 @@ public abstract class AbstractMinecartMixin extends Entity {
 	}
 
 	/**
-	 * Modified version of {@link AbstractMinecartMixin#moveOnRail(BlockPos, BlockState)}
+	 * Modified version of {@link AbstractMinecartEntity#moveOnRail(BlockPos, BlockState)}
 	 * that allows the minecart to maintain speeds above 32 m/s.
-	 * @param pos The block position of the cart.
+	 *
+	 * @param pos   The block position of the cart.
 	 * @param state The state of the block the cart is in.
 	 */
+	@SuppressWarnings("JavadocReference")
 	private void modifiedMoveOnRail(BlockPos pos, BlockState state) {
 		this.fallDistance = 0.0F;
 		double d = this.getX();
@@ -222,7 +229,7 @@ public abstract class AbstractMinecartMixin extends Entity {
 		}
 
 		Vec3d velocity = this.getVelocity();
-		RailShape railShape = state.get(((AbstractRailBlock)state.getBlock()).getShapeProperty());
+		RailShape railShape = state.get(((AbstractRailBlock) state.getBlock()).getShapeProperty());
 		switch (railShape) {
 			case ASCENDING_EAST -> {
 				this.setVelocity(velocity.add(-g, 0.0D, 0.0D));
@@ -289,19 +296,19 @@ public abstract class AbstractMinecartMixin extends Entity {
 			}
 		}
 
-		p = (double)pos.getX() + 0.5D + (double)vec3i.getX() * 0.5D;
-		double q = (double)pos.getZ() + 0.5D + (double)vec3i.getZ() * 0.5D;
-		double r = (double)pos.getX() + 0.5D + (double)vec3i2.getX() * 0.5D;
-		double s = (double)pos.getZ() + 0.5D + (double)vec3i2.getZ() * 0.5D;
+		p = (double) pos.getX() + 0.5D + (double) vec3i.getX() * 0.5D;
+		double q = (double) pos.getZ() + 0.5D + (double) vec3i.getZ() * 0.5D;
+		double r = (double) pos.getX() + 0.5D + (double) vec3i2.getX() * 0.5D;
+		double s = (double) pos.getZ() + 0.5D + (double) vec3i2.getZ() * 0.5D;
 		h = r - p;
 		i = s - q;
 		double x;
 		double v;
 		double w;
 		if (h == 0.0D) {
-			x = f - (double)pos.getZ();
+			x = f - (double) pos.getZ();
 		} else if (i == 0.0D) {
-			x = d - (double)pos.getX();
+			x = d - (double) pos.getX();
 		} else {
 			v = d - p;
 			w = f - q;
@@ -317,9 +324,9 @@ public abstract class AbstractMinecartMixin extends Entity {
 		Vec3d movement = new Vec3d(MathHelper.clamp(v * velocity.x, -w, w), 0.0D, MathHelper.clamp(v * velocity.z, -w, w));
 		this.move(MovementType.SELF, movement);
 		if (vec3i.getY() != 0 && MathHelper.floor(this.getX()) - pos.getX() == vec3i.getX() && MathHelper.floor(this.getZ()) - pos.getZ() == vec3i.getZ()) {
-			this.setPosition(this.getX(), this.getY() + (double)vec3i.getY(), this.getZ());
+			this.setPosition(this.getX(), this.getY() + (double) vec3i.getY(), this.getZ());
 		} else if (vec3i2.getY() != 0 && MathHelper.floor(this.getX()) - pos.getX() == vec3i2.getX() && MathHelper.floor(this.getZ()) - pos.getZ() == vec3i2.getZ()) {
-			this.setPosition(this.getX(), this.getY() + (double)vec3i2.getY(), this.getZ());
+			this.setPosition(this.getX(), this.getY() + (double) vec3i2.getY(), this.getZ());
 		}
 
 		this.applySlowdown();
@@ -342,7 +349,7 @@ public abstract class AbstractMinecartMixin extends Entity {
 		if (ac != pos.getX() || ad != pos.getZ()) {
 			vec3d7 = this.getVelocity();
 			af = vec3d7.horizontalLength();
-			this.setVelocity(af * (double)(ac - pos.getX()), vec3d7.y, af * (double)(ad - pos.getZ()));
+			this.setVelocity(af * (double) (ac - pos.getX()), vec3d7.y, af * (double) (ad - pos.getZ()));
 		}
 
 		if (onPoweredRail) {
